@@ -167,6 +167,7 @@ int main(int argc, char const **argv) {
     /*--------------------------*/
 
     /*---------Loading Data---------*/
+    //can't
     for(i = 0; i < N; ++i)
     {
       for(d = 0; d < D; ++d)
@@ -208,19 +209,18 @@ start = clock();
         }
       }
 
-
-      for(i = 0; i < N; ++i)
+      //potential
+      for(int i = 0; i < N; ++i)
       {
         Min[i] = FLAG_MAX;
-        for(j = 0; j < K; ++j)
+        cilk_for(int j = 0; j < K; ++j)
         {
           
           Distance[i*K + j] = 0;/*Reseting Distance at every iteration to 0 to calculate new ones */
           
-          //potensial utk parallel
-          //cilk_scope
-          //cilk_for
-         cilk_for(int d = 0; d < D; ++d)
+          
+          //potential, if have large number of dimensional
+        cilk_for(int d = 0; d < D; ++d)
           {
             /*Calculating distance for each element from each centroid by using sqrt(pow((x-y),2))*/
             Distance[i*K + j] +=((DataArray[i*D + d] - Centroids[j*D + d])*(DataArray[i*D + d] - Centroids[j*D + d]));
@@ -251,7 +251,7 @@ start = clock();
 
  /*Calculate new Centroids by dividing each feature sum with Counter */
  //potensial parallelism
-      cilk_for (int j = 0; j < K; ++j)
+      for (int j = 0; j < K; ++j)
       {
         for(d = 0; d < D; ++d)
         {
