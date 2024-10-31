@@ -17,12 +17,29 @@
 /*CURRENT VERSION WORKS WITHOUT HEADER FILES AND FUNCTIONS, IT'S WRITTEN THIS WAY
 FOR EASE OF USING AND READING OF RAW CODE*/
 
+//solution for race-condition
+        //call back for reducer
+        void zero_double(void *view) { *(double *)view = 0.0; }
+        void add_double(void *left, void *right)
+        { *(double *)left += *(double *)right; }
+     
+
+
+
 int main(int argc, char const **argv) {
 
     /* Starting Variables */
+      
     int N = -1; /*Size of data|| Initializing at -1 because our finder always count the last \n*/
-    unsigned int K = 0; /* Amount of clusters to be created,input given by the user */
-    unsigned int D = 0; /* Number of features(dimensions) */
+ 
+    //solusi for race condition
+    // unsigned int K = 0; /* Amount of clusters to be created,input given by the user */
+    unsigned int cilk_reducer(zero_double, add_double) K;   
+
+    //solusi race condition
+    unsigned int cilk_reducer(zero_double, add_double) D;   
+    // unsigned int D = 0; /* Number of features(dimensions) */
+
     srand(time(NULL));/*True Random*/
     unsigned int randVar = 0;/*Variable for picking random initial Centroids*/
     unsigned int iteration = 0;/*Amount of algorithm's iterations counter*/
@@ -30,9 +47,17 @@ int main(int argc, char const **argv) {
     clock_t start, end; //Timers
 
     /*(loop var) i is used for N, j is used for K,d is used for D */
-    register int i; //Elements
-    register int j; //Clusters
-    register int d; //Features
+
+      register int cilk_reducer(zero_double, add_double) i;   
+      // register int i; //Elements
+     
+     //solusi race condition untuk var j
+   register int cilk_reducer(zero_double, add_double) j;   
+    // register int j; //Clusters
+
+     //solusi race condition untuk var d
+   register int cilk_reducer(zero_double, add_double) d;   
+    // register int d; //Features
 
     /*-----------------------------*/
     char filename[MAX_SIZE];/* Holder for Dataset Filename */
@@ -80,7 +105,7 @@ int main(int argc, char const **argv) {
 
 
     int flag = 0;/*temp flag */
-    int flagPrev = 0;/*Holder of previous iteration's flag */
+    int flagPrev = 0;/*Holder of previous iteration's flag */    
     int counter = 0;/*switching between 0-1,necessary for the loop bellow*/
     char c;/*Temp char for file scaning*/
 
@@ -153,9 +178,16 @@ int main(int argc, char const **argv) {
 
     float *ClusterTotalSum;/*Array for holding the total sum of each cluster*/
     ClusterTotalSum = (float*)calloc(K*D,sizeof(float));/*Allocating space for K(rows) and D(features)*/
+    
 
     float *Distance;/*Array for holding the distance between each element from each Centroid*/
+    //karna ini tidak bisa-->
+    //  float cilk_reducer(zero_double, add_double) Distance;   
+    //coba solusi:
+    //buat variabel yang bisa menagkap value dari *Distance
+    //variabel akan digunakan pada hyoerobject reducer
     Distance = (float*)calloc(N*K,sizeof(float));/*Allocating space for N(elements) * K(Centroids)*/
+
 
     float *Min;/*Array for holding the min Distance*/
     Min = (float*)calloc(N,sizeof(float));
@@ -176,11 +208,14 @@ int main(int argc, char const **argv) {
     fclose(Dataset);//Closing the initial Data File
     /*--------------------------*/
 
-
+    
+        //solusi race condition
+            // int cilk_reducer(zero_double, add_double) j;   
 
     /*--------Generating Initial Random Centroids-----*/
     for(j = 0; j < K; ++j)
     {
+      //PILIH RANDOM CENTROID berdasarkan jumlah kluster yang diinput
       randVar = rand() % N;//Getting a different rand for every Centroid
       for(d = 0; d < D; ++d)
       {
@@ -193,11 +228,15 @@ int main(int argc, char const **argv) {
       /*--------------------------*/
 
 start = clock();
+  //  
+
   /*--Initializing the algoritm---*/
+
+
     do {
 
       /*For every iteration after the initial one resets the counter and sums to 0*/
-      if(iteration > 0)
+      if(iteration > 0) //untuk apa?
       {
         for(j = 0; j < K; ++j)
         {
@@ -210,21 +249,27 @@ start = clock();
       }
 
       //potential
-      for(int i = 0; i < N; ++i)
+      //menghitung jarak antar cenroid dan data poin
+     
+      cilk_for(int i = 0; i < N; ++i) //jumalah data poin/elemen
       {
         Min[i] = FLAG_MAX;
-        cilk_for(int j = 0; j < K; ++j)
+        for(int j = 0; j < K; ++j) //jumlah kluster
         {
           
           Distance[i*K + j] = 0;/*Reseting Distance at every iteration to 0 to calculate new ones */
           
-          
           //potential, if have large number of dimensional
-        cilk_for(int d = 0; d < D; ++d)
+        for(int d = 0; d < D; ++d) //jumlah fitur/dimensi data
           {
             /*Calculating distance for each element from each centroid by using sqrt(pow((x-y),2))*/
-            Distance[i*K + j] +=((DataArray[i*D + d] - Centroids[j*D + d])*(DataArray[i*D + d] - Centroids[j*D + d]));
+            //potential race condition
+            //misal; cluster = (2,3),(5,6),(8,1)
+            //dist= 
+            
+            Distance[i*K + j] +=((DataArray[i*D + d] - Centroids[j*D + d])*(DataArray[i*D + d] - Centroids[j*D + d])); 
           }
+          //potential to spawn-cilk
           Distance[i*K + j] = sqrt(Distance[i*K + j]);/*Getting the sqrt of the total features distance*/
 
          /*Everytime it finds a distance Smaller than previous it stores it's cluster location*/
@@ -236,7 +281,8 @@ start = clock();
         }
   /*For every element's  j(current Cluster)==location add it to Cluster's total sum
   and increase counter by 1 for the corresponding cluster */
-        for( j = 0; j < K; ++j)
+   //potensial race condition
+        for( int j = 0; j < K; ++j)
         {
           if(Location[i] == j)
           {
@@ -251,9 +297,11 @@ start = clock();
 
  /*Calculate new Centroids by dividing each feature sum with Counter */
  //potensial parallelism
-      for (int j = 0; j < K; ++j)
+ //update centroid baru
+ //seharusnya tidak dilakukan paralel
+   cilk_for (int j = 0; j < K; ++j)
       {
-        for(d = 0; d < D; ++d)
+        for(int d = 0; d < D; ++d)
         {
           Centroids[j*D + d] = ClusterTotalSum[j*D +d]/Counter[j];
         }
@@ -263,16 +311,20 @@ start = clock();
 it set's flagEnd to 0 and breaks the nested for loop and follows with an if to
 break the parent for loop. If all features are equal then set flagEnd to -1 which
 breaks the do-while loop */
-      for(j = 0; j < K; ++j)
+
+//mengecek apakah algoritma sudah konvergen
+      for(int j = 0; j < K; ++j)
       {
         for ( d = 0; d < D; ++d)
         {
           if(FlagCentroids[j*D + d] != Centroids[j*D + d])
           {
+            //belum konvergen, lanjut iterasi
             flagEnd = 0;
              break;
           }else
           {
+            //konvergen
             flagEnd = -1;
           }
           
@@ -307,6 +359,7 @@ breaks the do-while loop */
     OutputArray = calloc(K,sizeof(FILE*));
     char fileName[MAX_SIZE];
 
+//cari tau
     for(j = 0; j < K; ++j)
     {
       sprintf(fileName,"Cluster_%d.txt",j);
